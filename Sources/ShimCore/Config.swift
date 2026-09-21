@@ -20,9 +20,9 @@ public struct Config: Sendable {
         _ env: [String: String] = ProcessInfo.processInfo.environment
     ) -> Config {
         Config(
-            host: env["SIRI_SHIM_HOST"] ?? "127.0.0.1",
-            port: env["SIRI_SHIM_PORT"].flatMap(Int.init) ?? 11535,
-            modelID: env["SIRI_SHIM_MODEL_ID"] ?? "apple-on-device"
+            host: env["AFM_HOST"] ?? "127.0.0.1",
+            port: env["AFM_PORT"].flatMap(Int.init) ?? 11535,
+            modelID: env["AFM_MODEL_ID"] ?? "apple-on-device"
         )
     }
 }

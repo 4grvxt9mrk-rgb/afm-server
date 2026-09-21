@@ -35,9 +35,9 @@ final class GenerationRequestTests: XCTestCase {
 
     func testConfigFromEnvironmentOverrides() {
         let config = Config.fromEnvironment([
-            "SIRI_SHIM_HOST": "0.0.0.0",
-            "SIRI_SHIM_PORT": "8080",
-            "SIRI_SHIM_MODEL_ID": "siri-local"
+            "AFM_HOST": "0.0.0.0",
+            "AFM_PORT": "8080",
+            "AFM_MODEL_ID": "siri-local"
         ])
         XCTAssertEqual(config.host, "0.0.0.0")
         XCTAssertEqual(config.port, 8080)

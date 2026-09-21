@@ -5,7 +5,7 @@ import FoundationProvider
 import OpenAICompat
 
 @main
-struct SiriShim {
+struct AFMServer {
     static func main() async throws {
         let config = Config.fromEnvironment()
         let provider = FoundationModelsProvider(modelID: config.modelID)
@@ -25,11 +25,11 @@ struct SiriShim {
             router: router,
             configuration: .init(
                 address: .hostname(config.host, port: config.port),
-                serverName: "siri-shim"
+                serverName: "afm-server"
             )
         )
 
-        print("→ siri-shim listening on http://\(config.host):\(config.port)  (OpenAI-compatible)")
+        print("→ afm-server listening on http://\(config.host):\(config.port)  (OpenAI-compatible)")
         try await app.runService()
     }
 }

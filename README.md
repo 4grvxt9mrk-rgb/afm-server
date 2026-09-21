@@ -1,6 +1,6 @@
-# siri-shim
+# afm-server
 
-A modular, maintainable shim that exposes Apple's **on-device foundation model**
+**A**pple **F**oundation **M**odels server: a modular, maintainable shim that exposes Apple's **on-device foundation model**
 (the local Apple Intelligence LLM, via the `FoundationModels` framework) over an
 **OpenAI-compatible HTTP API** — so third-party tools like AnythingLLM, opencode,
 or anything that speaks the OpenAI API can talk to the local model on Apple hardware.
@@ -20,7 +20,7 @@ or anything that speaks the OpenAI API can talk to the local model on Apple hard
 
 ```bash
 swift build
-swift run siri-shim
+swift run afm-server
 ```
 
 The server listens on `http://127.0.0.1:11535` by default and prints on startup
@@ -28,11 +28,11 @@ whether the on-device model is available.
 
 ### Configuration (environment variables)
 
-| Variable             | Default        | Purpose                                   |
-| -------------------- | -------------- | ----------------------------------------- |
-| `SIRI_SHIM_HOST`     | `127.0.0.1`    | Bind address                              |
-| `SIRI_SHIM_PORT`     | `11535`        | Bind port                                 |
-| `SIRI_SHIM_MODEL_ID` | `apple-on-device` | Model id advertised and accepted       |
+| Variable        | Default           | Purpose                            |
+| --------------- | ----------------- | ---------------------------------- |
+| `AFM_HOST`      | `127.0.0.1`       | Bind address (`0.0.0.0` for Docker/LAN clients) |
+| `AFM_PORT`      | `11535`           | Bind port                          |
+| `AFM_MODEL_ID`  | `apple-on-device` | Model id advertised and accepted   |
 
 ## API
 
@@ -64,7 +64,7 @@ Set the client's OpenAI base URL to `http://127.0.0.1:11535/v1` and use model id
 ## Architecture
 
 ```
-siri-shim (executable)   composition root: config + server + routes
+afm-server (executable)  composition root: config + server + routes
 ├── ShimCore             domain types, LLMProvider protocol, config (no deps)
 ├── FoundationProvider   wraps Apple's FoundationModels framework
 └── OpenAICompat         OpenAI DTOs + Hummingbird route handlers
