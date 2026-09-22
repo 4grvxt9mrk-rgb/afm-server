@@ -46,6 +46,11 @@ let package = Package(
         .testTarget(
             name: "ShimCoreTests",
             dependencies: ["ShimCore"]
+        ),
+
+        .testTarget(
+            name: "OpenAICompatTests",
+            dependencies: ["OpenAICompat", "ShimCore"]
         )
     ]
 )

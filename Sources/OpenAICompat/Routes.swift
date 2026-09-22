@@ -41,9 +41,83 @@ public struct OpenAIRoutes: Sendable {
             return try errorResponse(message(for: shimError), status: .serviceUnavailable, type: "server_error")
         }
 
+        // Tool-calling decisions are computed with constrained decoding, which is
+        // inherently non-streaming; emit the result as SSE only if the client
+        // asked for a stream.
+        if domain.wantsToolCalling {
+            return try await toolCallResponse(domain)
+        }
+
         return domain.stream
             ? streamingResponse(domain)
             : try await completionResponse(domain)
+    }
+
+    private func toolCallResponse(_ request: GenerationRequest) async throws -> Response {
+        let result: GenerationResult
+        do {
+            result = try await provider.generate(request)
+        } catch let shimError as ShimError {
+            return try errorResponse(message(for: shimError), status: .internalServerError, type: "server_error")
+        } catch {
+            return try errorResponse("Generation failed: \(error)", status: .internalServerError, type: "server_error")
+        }
+
+        guard request.stream else {
+            return try json(ChatCompletionResponse.make(model: request.model, result: result))
+        }
+        return oneShotStream(result, model: request.model)
+    }
+
+    /// Emit a single already-computed result as an SSE stream (opening role
+    /// chunk, one content-or-tool_calls chunk, a finish chunk, then `[DONE]`).
+    private func oneShotStream(_ result: GenerationResult, model: String) -> Response {
+        let id = "chatcmpl-\(UUID().uuidString)"
+        let created = Int(Date().timeIntervalSince1970)
+        let enc = encoder
+
+        let sse = AsyncThrowingStream<ByteBuffer, Error> { continuation in
+            func send(_ chunk: ChatCompletionChunk) {
+                guard let data = try? enc.encode(chunk),
+                      let line = String(data: data, encoding: .utf8) else { return }
+                continuation.yield(ByteBuffer(string: "data: \(line)\n\n"))
+            }
+
+            send(ChatCompletionChunk(
+                id: id, object: "chat.completion.chunk", created: created, model: model,
+                choices: [.init(index: 0, delta: .init(role: "assistant"), finish_reason: nil)]
+            ))
+
+            if result.toolCalls.isEmpty {
+                send(ChatCompletionChunk(
+                    id: id, object: "chat.completion.chunk", created: created, model: model,
+                    choices: [.init(index: 0, delta: .init(content: result.text), finish_reason: nil)]
+                ))
+            } else {
+                let deltas = result.toolCalls.enumerated().map { index, call in
+                    ChatCompletionChunk.ToolCallDelta(
+                        index: index, id: call.id,
+                        function: .init(name: call.name, arguments: call.argumentsJSON)
+                    )
+                }
+                send(ChatCompletionChunk(
+                    id: id, object: "chat.completion.chunk", created: created, model: model,
+                    choices: [.init(index: 0, delta: .init(tool_calls: deltas), finish_reason: nil)]
+                ))
+            }
+
+            send(ChatCompletionChunk(
+                id: id, object: "chat.completion.chunk", created: created, model: model,
+                choices: [.init(index: 0, delta: .init(), finish_reason: result.finishReason.rawValue)]
+            ))
+            continuation.yield(ByteBuffer(string: "data: [DONE]\n\n"))
+            continuation.finish()
+        }
+
+        var headers = HTTPFields()
+        headers[.contentType] = "text/event-stream"
+        headers[.cacheControl] = "no-cache"
+        return Response(status: .ok, headers: headers, body: ResponseBody(asyncSequence: sse))
     }
 
     private func completionResponse(_ request: GenerationRequest) async throws -> Response {

@@ -46,13 +46,43 @@ public struct FoundationModelsProvider: LLMProvider {
 
         let session = makeSession(request)
         do {
+            // Tool calling: constrain the model to a structured "which tool +
+            // what arguments" decision, then translate it into tool calls.
+            if request.wantsToolCalling, let schema = SchemaBridge.decisionSchema(for: request) {
+                return try await generateWithTools(request, session: session, schema: schema)
+            }
+
             let response = try await session.respond(
                 to: request.prompt,
                 options: options(request)
             )
             return GenerationResult(text: response.content)
+        } catch let error as ShimError {
+            throw error
         } catch {
             throw ShimError.generationFailed(String(describing: error))
+        }
+    }
+
+    private func generateWithTools(
+        _ request: GenerationRequest,
+        session: LanguageModelSession,
+        schema: GenerationSchema
+    ) async throws -> GenerationResult {
+        let allowFinal = request.toolChoice == .auto
+        let guide = SchemaBridge.toolGuide(for: request, allowFinal: allowFinal)
+        let prompt = "\(request.prompt)\n\n\(guide)"
+
+        let response = try await session.respond(
+            to: prompt,
+            schema: schema,
+            options: options(request)
+        )
+        switch SchemaBridge.interpret(response.content) {
+        case .finalAnswer(let text):
+            return GenerationResult(text: text, finishReason: .stop)
+        case .toolCalls(let calls):
+            return GenerationResult(text: "", toolCalls: calls, finishReason: .toolCalls)
         }
     }
 
