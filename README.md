@@ -116,4 +116,4 @@ still delivered as a single SSE `tool_calls` chunk.
 
 ## License
 
-TBD.
+MIT — see [LICENSE](LICENSE).
