@@ -25,11 +25,11 @@ struct AFMServer {
             router: router,
             configuration: .init(
                 address: .hostname(config.host, port: config.port),
-                serverName: "afm-server/\(ShimCore.AFMServer.version)"
+                serverName: "afm-server/\(AFMBuild.version)"
             )
         )
 
-        print("→ afm-server \(ShimCore.AFMServer.version) listening on http://\(config.host):\(config.port)  (OpenAI-compatible)")
+        print("→ afm-server \(AFMBuild.version) listening on http://\(config.host):\(config.port)  (OpenAI-compatible)")
         try await app.runService()
     }
 }
